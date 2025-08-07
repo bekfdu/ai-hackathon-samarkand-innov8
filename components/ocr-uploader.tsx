@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Upload, FileText, Loader2, AlertCircle, Copy, CheckCircle, Camera, X, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { CameraUploader } from './camera-uploader'
 
 interface OCRResponse {
   text?: string
@@ -30,6 +31,7 @@ export function OCRUploader({ onOCRResult, className = "" }: OCRUploaderProps) {
   const [copied, setCopied] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [showCamera, setShowCamera] = useState(false)
 
   // Network status monitoring
   React.useEffect(() => {
@@ -103,122 +105,122 @@ export function OCRUploader({ onOCRResult, className = "" }: OCRUploaderProps) {
   }
 
   const performOCR = async (file: File): Promise<OCRResponse> => {
-  // Check network connectivity
-  if (!isOnline) {
-    throw new Error("Internet aloqasi yo'q. Iltimos, internetga ulanib qayta urinib ko'ring.")
-  }
-
-  try {
-    console.log('OCR: Starting conversion to base64 for file:', file.name)
-    const base64String = await convertToBase64(file)
-    console.log('OCR: Base64 conversion successful, length:', base64String.length)
-
-    // Prepare request payload matching your server format
-    const requestPayload = {
-      image_base64: base64String
+    // Check network connectivity
+    if (!isOnline) {
+      throw new Error("Internet aloqasi yo'q. Iltimos, internetga ulanib qayta urinib ko'ring.")
     }
 
-    console.log('OCR: Sending request to API endpoint')
-    
-    // Create abort controller for timeout
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => {
-      controller.abort()
-    }, 30000) // 30 second timeout
+    try {
+      console.log('OCR: Starting conversion to base64 for file:', file.name)
+      const base64String = await convertToBase64(file)
+      console.log('OCR: Base64 conversion successful, length:', base64String.length)
 
-    const response = await fetch("https://educhecktexttest1111.onrender.com/detect", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify(requestPayload),
-      signal: controller.signal
-    })
+      // Prepare request payload matching your server format
+      const requestPayload = {
+        image_base64: base64String
+      }
 
-    clearTimeout(timeoutId)
-    
-    console.log('OCR: Response received, status:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('OCR: API error response:', errorText)
+      console.log('OCR: Sending request to API endpoint')
       
-      if (response.status === 413) {
-        throw new Error("Fayl hajmi juda katta. Iltimos, kichikroq rasm yuklang.")
-      } else if (response.status === 429) {
-        throw new Error("Juda ko'p so'rov yuborildi. Iltimos, biroz kuting va qayta urinib ko'ring.")
-      } else if (response.status >= 500) {
-        throw new Error("Server xatosi. Iltimos, keyinroq qayta urinib ko'ring.")
-      } else {
-        throw new Error(`API xatosi: ${response.status} - ${response.statusText}`)
+      // Create abort controller for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+      }, 30000) // 30 second timeout
+
+      const response = await fetch("https://educhecktexttest1111.onrender.com/detect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+      
+      console.log('OCR: Response received, status:', response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('OCR: API error response:', errorText)
+        
+        if (response.status === 413) {
+          throw new Error("Fayl hajmi juda katta. Iltimos, kichikroq rasm yuklang.")
+        } else if (response.status === 429) {
+          throw new Error("Juda ko'p so'rov yuborildi. Iltimos, biroz kuting va qayta urinib ko'ring.")
+        } else if (response.status >= 500) {
+          throw new Error("Server xatosi. Iltimos, keyinroq qayta urinib ko'ring.")
+        } else {
+          throw new Error(`API xatosi: ${response.status} - ${response.statusText}`)
+        }
       }
-    }
 
-    const data = await response.json()
-    console.log('OCR: Success response received:', data)
+      const data = await response.json()
+      console.log('OCR: Success response received:', data)
 
-    // Validate response structure based on your server format
-    if (!data || typeof data !== 'object') {
-      throw new Error("Noto'g'ri API javobi formati")
-    }
-
-    // Handle your server's response format with 'texts' array
-    let extractedText = ""
-    let confidence = 0.95 // Default confidence since Google Vision API doesn't return this directly
-    
-    if (data.texts && Array.isArray(data.texts) && data.texts.length > 0) {
-      // The first element usually contains the full text
-      if (data.texts[0] && data.texts[0].description) {
-        extractedText = data.texts[0].description.trim()
-      } else {
-        // Fallback: combine all text descriptions
-        extractedText = data.texts
-          .map((text: any) => text.description || '')
-          .filter((desc: string) => desc.trim() !== '')
-          .join(' ')
-          .trim()
+      // Validate response structure based on your server format
+      if (!data || typeof data !== 'object') {
+        throw new Error("Noto'g'ri API javobi formati")
       }
-    }
-    
-    if (!extractedText || extractedText === '') {
-      throw new Error("Rasmdan matn topilmadi. Iltimos, aniqroq va o'qilishi oson rasm yuklang.")
-    }
 
-    // Detect language based on text content (simple heuristic)
-    let detectedLanguage = 'uzbek'
-    if (/[а-яё]/i.test(extractedText)) {
-      detectedLanguage = 'russian'
-    } else if (/[a-z]/i.test(extractedText) && !/[ўғқҳ]/i.test(extractedText)) {
-      detectedLanguage = 'english'
-    } else if (/[çğıöşü]/i.test(extractedText)) {
-      detectedLanguage = 'turkish'
-    }
-
-    return {
-      text: extractedText,
-      confidence: confidence,
-      language: detectedLanguage,
-      success: true,
-      boundingBoxes: data.texts // Store bounding box data for potential future use
-    }
-
-  } catch (error) {
-    console.error('OCR: Error occurred:', error)
-    
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error("So'rov vaqti tugadi. Iltimos, qayta urinib ko'ring.")
-      } else if (error.message.includes('fetch')) {
-        throw new Error("Tarmoq xatosi. Internet aloqangizni tekshiring.")
-      } else {
-        throw error
+      // Handle your server's response format with 'texts' array
+      let extractedText = ""
+      let confidence = 0.95 // Default confidence since Google Vision API doesn't return this directly
+      
+      if (data.texts && Array.isArray(data.texts) && data.texts.length > 0) {
+        // The first element usually contains the full text
+        if (data.texts[0] && data.texts[0].description) {
+          extractedText = data.texts[0].description.trim()
+        } else {
+          // Fallback: combine all text descriptions
+          extractedText = data.texts
+            .map((text: any) => text.description || '')
+            .filter((desc: string) => desc.trim() !== '')
+            .join(' ')
+            .trim()
+        }
       }
-    } else {
-      throw new Error("Noma'lum xatolik yuz berdi")
+      
+      if (!extractedText || extractedText === '') {
+        throw new Error("Rasmdan matn topilmadi. Iltimos, aniqroq va o'qilishi oson rasm yuklang.")
+      }
+
+      // Detect language based on text content (simple heuristic)
+      let detectedLanguage = 'uzbek'
+      if (/[а-яё]/i.test(extractedText)) {
+        detectedLanguage = 'russian'
+      } else if (/[a-z]/i.test(extractedText) && !/[ўғқҳ]/i.test(extractedText)) {
+        detectedLanguage = 'english'
+      } else if (/[çğıöşü]/i.test(extractedText)) {
+        detectedLanguage = 'turkish'
+      }
+
+      return {
+        text: extractedText,
+        confidence: confidence,
+        language: detectedLanguage,
+        success: true,
+        boundingBoxes: data.texts // Store bounding box data for potential future use
+      }
+
+    } catch (error) {
+      console.error('OCR: Error occurred:', error)
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error("So'rov vaqti tugadi. Iltimos, qayta urinib ko'ring.")
+        } else if (error.message.includes('fetch')) {
+          throw new Error("Tarmoq xatosi. Internet aloqangizni tekshiring.")
+        } else {
+          throw error
+        }
+      } else {
+        throw new Error("Noma'lum xatolik yuz berdi")
+      }
     }
   }
-}
 
   const handleFileChange = async (file: File) => {
     if (!file) return
@@ -259,6 +261,11 @@ export function OCRUploader({ onOCRResult, className = "" }: OCRUploaderProps) {
     if (file) {
       handleFileChange(file)
     }
+  }, [])
+
+  const handleCameraCapture = useCallback((file: File) => {
+    handleFileChange(file)
+    setShowCamera(false)
   }, [])
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -322,6 +329,16 @@ export function OCRUploader({ onOCRResult, className = "" }: OCRUploaderProps) {
     }
   }
 
+  // Show camera component
+  if (showCamera) {
+    return (
+      <CameraUploader
+        onCapture={handleCameraCapture}
+        onClose={() => setShowCamera(false)}
+      />
+    )
+  }
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
@@ -383,17 +400,10 @@ export function OCRUploader({ onOCRResult, className = "" }: OCRUploaderProps) {
                 variant="outline" 
                 className="relative"
                 disabled={loading || !isOnline}
+                onClick={() => setShowCamera(true)}
               >
                 <Camera className="w-4 h-4 mr-2" />
-                Rasm olish
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileInput}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  disabled={loading || !isOnline}
-                />
+                Kamera
               </Button>
               
               <Button 

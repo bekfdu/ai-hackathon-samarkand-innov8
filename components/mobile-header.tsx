@@ -4,6 +4,7 @@ import { ArrowLeft, MoreVertical, Bell, Search } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
+import Image from "next/image"
 
 interface MobileHeaderProps {
   title: string
@@ -36,8 +37,14 @@ export function MobileHeader({
               </Button>
             </Link>
           ) : (
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
+            <div className="w-10 h-10 flex items-center justify-center">
+              <Image
+                src="/logo.svg"
+                alt="EduCheck Logo"
+                width={40}
+                height={40}
+                className="w-10 h-10"
+              />
             </div>
           )}
           

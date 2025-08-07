@@ -4,6 +4,7 @@ import { useCallback, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Upload, Camera, FileText, X, ImageIcon, Loader2, AlertCircle, Copy, CheckCircle } from 'lucide-react'
+import { CameraUploader } from "./camera-uploader"
 
 interface OCRResponse {
   text?: string
@@ -25,6 +26,7 @@ export function EnhancedFileUploader({ onFileSelect, selectedFile, onOCRResult }
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrError, setOcrError] = useState("")
   const [copied, setCopied] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -58,6 +60,14 @@ export function EnhancedFileUploader({ onFileSelect, selectedFile, onOCRResult }
         performOCR(file)
       }
     }
+  }, [onFileSelect])
+
+  const handleCameraCapture = useCallback((file: File) => {
+    if (validateFile(file)) {
+      onFileSelect(file)
+      performOCR(file)
+    }
+    setShowCamera(false)
   }, [onFileSelect])
 
   const validateFile = (file: File) => {
@@ -155,6 +165,16 @@ export function EnhancedFileUploader({ onFileSelect, selectedFile, onOCRResult }
     setOcrResult(null)
     setOcrError("")
     setOcrLoading(false)
+  }
+
+  // Show camera component
+  if (showCamera) {
+    return (
+      <CameraUploader
+        onCapture={handleCameraCapture}
+        onClose={() => setShowCamera(false)}
+      />
+    )
   }
 
   if (selectedFile) {
@@ -334,16 +354,13 @@ export function EnhancedFileUploader({ onFileSelect, selectedFile, onOCRResult }
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button variant="outline" className="relative">
+          <Button 
+            variant="outline" 
+            className="relative"
+            onClick={() => setShowCamera(true)}
+          >
             <Camera className="w-4 h-4 mr-2" />
-            Rasm olish
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFileInput}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
+            Kamera
           </Button>
           
           <Button variant="outline" className="relative">

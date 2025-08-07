@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle, AlertCircle, Loader2, FileText, Copy, RefreshCw } from 'lucide-react'
+import { CheckCircle, AlertCircle, Loader2, FileText, Copy, RefreshCw, Info } from 'lucide-react'
 import { checkGrammar, calculateScore } from '@/lib/api-services'
 import { EnhancedErrorDisplay } from './enhanced-error-display'
 
@@ -46,6 +46,11 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
       return
     }
 
+    if (text.trim().length < 3) {
+      setError("Matn juda qisqa. Kamida 3 ta belgi kiriting.")
+      return
+    }
+
     setLoading(true)
     setError("")
     setResult(null)
@@ -74,7 +79,9 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
         errorsFound: grammarResponse.errors.length,
         score: score,
         source: grammarResponse.source,
-        errorsWithMultipleSuggestions: grammarResponse.errors.filter(e => e.corrections && e.corrections.length > 1).length
+        fallback: grammarResponse.fallback,
+        textLength: text.length,
+        wordCount: text.split(/\s+/).length
       })
       
     } catch (err) {
@@ -112,6 +119,12 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
     return 'Yaxshilanishi kerak'
   }
 
+  const exampleTexts = [
+    "Salomm, meni ismim Ahmad. Men universitet da o'qiyman.",
+    "Kitob ni o'qish juda foydali. Maktab ga boraman har kuni.",
+    "Uy dan chiqib do'kon ga bordim. U yerda ko'p odamlar bor edi."
+  ]
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
@@ -123,6 +136,24 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
           Matnni grammatika va imlo xatoliklari uchun tekshiring
         </p>
       </div>
+
+      {/* Info Card */}
+      <Card className="bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <p className="font-medium mb-1">Qanday ishlaydi:</p>
+              <ul className="space-y-1 text-xs">
+                <li>• Matnni kiriting (kamida 3 ta belgi)</li>
+                <li>• AI grammatika va imlo xatoliklarini topadi</li>
+                <li>• Har bir xato uchun tuzatish taklif qilinadi</li>
+                <li>• Umumiy ball 1 dan 10 gacha beriladi</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Text Input */}
       <Card className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-purple-100 dark:border-purple-800">
@@ -141,17 +172,38 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
             disabled={loading}
           />
           
+          {/* Example texts */}
+          {!text && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Sinab ko'rish uchun:</p>
+              <div className="flex flex-wrap gap-2">
+                {exampleTexts.map((example, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setText(example)}
+                    className="text-xs h-auto py-1 px-2"
+                  >
+                    Misol {index + 1}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500 dark:text-gray-400">
               {text.length} belgi, {text.split(/\s+/).filter(word => word.length > 0).length} so'z
+              {text.length < 3 && text.length > 0 && (
+                <span className="text-red-500 ml-2">• Kamida 3 ta belgi kerak</span>
+              )}
             </div>
             
             <div className="flex gap-2">
               {result && text !== originalText && (
                 <Button 
-                  onClick={() => {
-                    setText(originalText)
-                  }}
+                  onClick={() => setText(originalText)}
                   variant="outline"
                   size="sm"
                 >
@@ -162,7 +214,7 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
               
               <Button 
                 onClick={handleCheck}
-                disabled={loading || !text.trim()}
+                disabled={loading || !text.trim() || text.trim().length < 3}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
               >
                 {loading ? (
@@ -193,7 +245,7 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
                   Grammatika tekshirilmoqda...
                 </div>
                 <div className="text-blue-600 dark:text-blue-400 text-sm mt-1">
-                  Tahrirchi.uz API orqali tahlil qilinmoqda
+                  Bu bir necha soniya davom etishi mumkin
                 </div>
               </div>
             </div>
@@ -220,6 +272,7 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
                 size="sm"
                 onClick={handleCheck}
                 className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
+                disabled={!text.trim() || text.trim().length < 3}
               >
                 <RefreshCw className="w-4 h-4 mr-1" />
                 Qayta urinish
@@ -288,6 +341,7 @@ export function GrammarChecker({ initialText = "", onResult, className = "" }: G
             <Button
               onClick={handleCheck}
               className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              disabled={!text.trim() || text.trim().length < 3}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Qayta tekshirish

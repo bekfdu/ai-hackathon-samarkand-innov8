@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ChevronDown, ChevronUp, Check, X, AlertCircle, Lightbulb, BookOpen } from 'lucide-react'
+import { ChevronDown, ChevronUp, Check, X, AlertCircle, Lightbulb, BookOpen, ChevronRight } from 'lucide-react'
 
 interface GrammarError {
   position: number
@@ -35,6 +35,7 @@ export function EnhancedErrorDisplay({
   const [expandedErrors, setExpandedErrors] = useState<Set<number>>(new Set())
   const [selectedCorrections, setSelectedCorrections] = useState<{[key: number]: string}>({})
   const [appliedCorrections, setAppliedCorrections] = useState<Set<number>>(new Set())
+  const [openDropdowns, setOpenDropdowns] = useState<Set<number>>(new Set())
 
   const toggleErrorExpansion = (index: number) => {
     const newExpanded = new Set(expandedErrors)
@@ -46,11 +47,26 @@ export function EnhancedErrorDisplay({
     setExpandedErrors(newExpanded)
   }
 
+  const toggleDropdown = (index: number) => {
+    const newOpen = new Set(openDropdowns)
+    if (newOpen.has(index)) {
+      newOpen.delete(index)
+    } else {
+      newOpen.add(index)
+    }
+    setOpenDropdowns(newOpen)
+  }
+
   const handleCorrectionSelect = (errorIndex: number, correction: string) => {
     setSelectedCorrections(prev => ({
       ...prev,
       [errorIndex]: correction
     }))
+    
+    // Close dropdown after selection
+    const newOpen = new Set(openDropdowns)
+    newOpen.delete(errorIndex)
+    setOpenDropdowns(newOpen)
   }
 
   const handleApplyCorrection = (errorIndex: number) => {
@@ -185,6 +201,7 @@ export function EnhancedErrorDisplay({
           const isExpanded = expandedErrors.has(index)
           const isApplied = appliedCorrections.has(index)
           const selectedCorrection = selectedCorrections[index] || error.correction
+          const isDropdownOpen = openDropdowns.has(index)
           
           return (
             <Card 
@@ -192,55 +209,33 @@ export function EnhancedErrorDisplay({
               className={`border-l-4 ${getErrorTypeColor(error.type)} ${isApplied ? 'opacity-75' : ''}`}
             >
               <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline" className={`${getErrorTypeColor(error.type)} border`}>
-                        {getErrorTypeIcon(error.type)}
-                        <span className="ml-1">{getErrorTypeLabel(error.type)}</span>
-                      </Badge>
-                      
-                      {isApplied && (
-                        <Badge variant="outline" className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
-                          <Check className="w-3 h-3 mr-1" />
-                          Tuzatildi
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className={`${getErrorTypeColor(error.type)} border`}>
+                          {getErrorTypeIcon(error.type)}
+                          <span className="ml-1">{getErrorTypeLabel(error.type)}</span>
                         </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">Xato: </span>
-                        <span className="line-through text-red-600 dark:text-red-400 font-medium">
-                          "{error.text}"
-                        </span>
+                        
+                        {isApplied && (
+                          <Badge variant="outline" className="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
+                            <Check className="w-3 h-3 mr-1" />
+                            Tuzatildi
+                          </Badge>
+                        )}
                       </div>
                       
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">Tavsiya: </span>
-                        <span className="text-green-600 dark:text-green-400 font-medium">
-                          "{selectedCorrection}"
-                        </span>
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">Xato: </span>
+                          <span className="line-through text-red-600 dark:text-red-400 font-medium">
+                            "{error.text}"
+                          </span>
+                        </div>
                       </div>
-                      
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {error.description}
-                      </p>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 ml-4">
-                    {!isApplied && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleApplyCorrection(index)}
-                        className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Qo'llash
-                      </Button>
-                    )}
                     
                     <Button
                       variant="ghost"
@@ -255,77 +250,101 @@ export function EnhancedErrorDisplay({
                       )}
                     </Button>
                   </div>
-                </div>
-                
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                    {/* Multiple Corrections Dropdown */}
-                    {error.corrections && error.corrections.length > 1 && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Tuzatish variantlari ({error.corrections.length}):
-                        </label>
-                        <Select
-                          value={selectedCorrection}
-                          onValueChange={(value) => handleCorrectionSelect(index, value)}
+
+                  {/* Suggestions Dropdown */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Tuzatish variantlari ({error.corrections.length}):
+                      </label>
+                      
+                      <div className="relative">
+                        <button
+                          onClick={() => toggleDropdown(index)}
+                          className="w-full flex items-center justify-between p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Variant tanlang" />
-                          </SelectTrigger>
-                          <SelectContent>
+                          <span className="text-green-600 dark:text-green-400 font-medium">
+                            "{selectedCorrection}"
+                          </span>
+                          <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`} />
+                        </button>
+                        
+                        {isDropdownOpen && (
+                          <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                             {error.corrections.map((correction, corrIndex) => (
-                              <SelectItem key={corrIndex} value={correction}>
-                                <div className="flex items-center justify-between w-full">
-                                  <span>"{correction}"</span>
-                                  {corrIndex === 0 && (
-                                    <Badge variant="secondary" className="ml-2 text-xs">
-                                      Tavsiya
-                                    </Badge>
-                                  )}
+                              <button
+                                key={corrIndex}
+                                onClick={() => handleCorrectionSelect(index, correction)}
+                                className={`w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
+                                  selectedCorrection === correction ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-gray-100'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium">"{correction}"</span>
+                                  <div className="flex items-center gap-2">
+                                    {corrIndex === 0 && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        Tavsiya
+                                      </Badge>
+                                    )}
+                                    {selectedCorrection === correction && (
+                                      <Check className="w-4 h-4 text-green-600" />
+                                    )}
+                                  </div>
                                 </div>
-                              </SelectItem>
+                              </button>
                             ))}
-                          </SelectContent>
-                        </Select>
+                          </div>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Apply Button */}
+                    {!isApplied && (
+                      <Button
+                        onClick={() => handleApplyCorrection(index)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        "{selectedCorrection}" ni qo'llash
+                      </Button>
                     )}
-                    
-                    {/* Context Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
-                      <div>
-                        <span className="font-medium">Pozitsiya:</span> {error.position}
+                  </div>
+
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Tafsilot: </span>
+                        <span className="text-gray-600 dark:text-gray-400">{error.description}</span>
                       </div>
-                      {error.length && (
+                      
+                      {/* Context Information */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
                         <div>
-                          <span className="font-medium">Uzunlik:</span> {error.length}
+                          <span className="font-medium">Pozitsiya:</span> {error.position}
                         </div>
-                      )}
-                      {error.sentence_start !== undefined && (
+                        {error.length && (
+                          <div>
+                            <span className="font-medium">Uzunlik:</span> {error.length}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Context Preview */}
+                      {error.sentence_start !== undefined && error.sentence_end !== undefined && (
                         <div>
-                          <span className="font-medium">Jumla boshi:</span> {error.sentence_start}
-                        </div>
-                      )}
-                      {error.sentence_end !== undefined && (
-                        <div>
-                          <span className="font-medium">Jumla oxiri:</span> {error.sentence_end}
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Kontekst:
+                          </label>
+                          <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded text-sm">
+                            {text.slice(error.sentence_start, error.sentence_end)}
+                          </div>
                         </div>
                       )}
                     </div>
-                    
-                    {/* Context Preview */}
-                    {error.sentence_start !== undefined && error.sentence_end !== undefined && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Kontekst:
-                        </label>
-                        <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded text-sm">
-                          {text.slice(error.sentence_start, error.sentence_end)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           )

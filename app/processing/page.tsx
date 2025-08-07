@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { X, AlertTriangle, CheckCircle } from 'lucide-react'
+import { X, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 import { useRouter } from "next/navigation"
 import { ProgressStepper } from "@/components/progress-stepper"
 import { performOCR, checkGrammar, calculateScore } from "@/lib/api-services"
@@ -18,6 +18,11 @@ export default function ProcessingPage() {
   const [error, setError] = useState("")
   const [retryCount, setRetryCount] = useState(0)
   const [processingStatus, setProcessingStatus] = useState("")
+  const [processingDetails, setProcessingDetails] = useState({
+    fileName: "",
+    fileSize: "",
+    language: "uzbek"
+  })
 
   const steps = [
     { id: 1, title: "Rasmdan matn ajratish", description: "OCR texnologiyasi ishlamoqda..." },
@@ -36,6 +41,12 @@ export default function ProcessingPage() {
       try {
         const fileInfo = JSON.parse(fileData)
         console.log('Processing file:', fileInfo.name, 'Language:', fileInfo.language)
+        
+        setProcessingDetails({
+          fileName: fileInfo.name,
+          fileSize: `${(fileInfo.size / 1024 / 1024).toFixed(2)} MB`,
+          language: fileInfo.language || 'uzbek'
+        })
         
         setProcessingStatus("Fayl tayyorlanmoqda...")
         
@@ -57,6 +68,7 @@ export default function ProcessingPage() {
             
             setCurrentStep(1)
             setProgress(100)
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Show completion
           } else {
             const response = await fetch(fileInfo.data)
             const blob = await response.blob()
@@ -170,7 +182,7 @@ export default function ProcessingPage() {
     for (let i = 0; i <= 100; i += 25) {
       setProgress(i)
       setEstimatedTime(Math.max(1, 3 - Math.floor(i / 25)))
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, 300))
     }
     
     const score = calculateScore(ocrResult.text, grammarResult.errors)
@@ -180,7 +192,10 @@ export default function ProcessingPage() {
       errors: grammarResult.errors,
       confidence: ocrResult.confidence,
       language: ocrResult.language,
-      fallback: ocrResult.fallback || grammarResult.fallback
+      fallback: ocrResult.fallback || grammarResult.fallback,
+      processedAt: new Date().toISOString(),
+      wordCount: ocrResult.text.split(/\s+/).filter((word: string) => word.length > 0).length,
+      errorCount: grammarResult.errors.length
     }
     
     localStorage.setItem('grammarResults', JSON.stringify(finalResults))
@@ -219,6 +234,7 @@ export default function ProcessingPage() {
               <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">{error}</p>
               <div className="space-y-3">
                 <Button onClick={handleRetry} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-2xl py-3">
+                  <Loader2 className="w-4 h-4 mr-2" />
                   Qayta urinish
                 </Button>
                 <Button variant="outline" onClick={handleCancel} className="w-full rounded-2xl py-3">
@@ -245,6 +261,29 @@ export default function ProcessingPage() {
       />
 
       <div className="px-4 py-6 space-y-6">
+        {/* File Info */}
+        {processingDetails.fileName && (
+          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Fayl ma'lumotlari</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Fayl nomi:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">{processingDetails.fileName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Hajmi:</span>
+                  <span className="text-gray-900 dark:text-white">{processingDetails.fileSize}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Til:</span>
+                  <span className="text-gray-900 dark:text-white capitalize">{processingDetails.language}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Progress Steps */}
         <ProgressStepper 
           steps={steps} 
@@ -274,6 +313,29 @@ export default function ProcessingPage() {
               <CheckCircle className="w-4 h-4 text-green-500" />
               <span className="text-sm text-green-600 dark:text-green-400">API ulanishi faol</span>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Processing Tips */}
+        <Card className="bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 border">
+          <CardContent className="p-4">
+            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3 text-sm">
+              ⏳ Kutish vaqtida:
+            </h4>
+            <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+              <li className="flex items-start gap-2">
+                <span className="text-blue-500 mt-0.5">•</span>
+                <span>AI texnologiyasi rasmingizni tahlil qilmoqda</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-500 mt-0.5">•</span>
+                <span>Grammatika va imlo xatoliklari qidirilmoqda</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-500 mt-0.5">•</span>
+                <span>Natijalar tez orada tayyor bo'ladi</span>
+              </li>
+            </ul>
           </CardContent>
         </Card>
 
